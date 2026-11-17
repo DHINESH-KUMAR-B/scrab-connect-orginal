@@ -1,0 +1,9 @@
+@tailwind base;@tailwind components;@tailwind utilities;
+html,body{overflow-x:clip;max-width:100%}
+body{@apply font-sans bg-emerald-50 text-slate-800 dark:bg-[#07140e] dark:text-emerald-50;
+background-image:radial-gradient(circle at 15% 10%,rgba(34,197,94,.25),transparent 40%),radial-gradient(circle at 85% 60%,rgba(16,185,129,.18),transparent 45%);background-attachment:fixed}
+.glass{@apply rounded-2xl border border-white/40 bg-white/60 backdrop-blur-xl shadow-lg dark:border-white/10 dark:bg-white/5}
+.btn{@apply min-h-[40px] rounded-xl bg-leaf-500 px-4 py-2.5 sm:px-5 font-semibold text-emerald-950 transition hover:bg-leaf-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf-400}
+.input{@apply w-full min-w-0 rounded-xl border border-white/20 bg-white/50 px-3.5 py-2.5 sm:px-4 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-leaf-400}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.leaflet-container{z-index:0;font:inherit;max-width:100%}
