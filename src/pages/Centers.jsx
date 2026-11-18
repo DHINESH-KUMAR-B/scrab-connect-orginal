@@ -9,6 +9,50 @@ import { useAuth } from '../context/AuthContext'
 
 const MATERIAL_FILTERS = ['All', 'E-Waste', 'Copper', 'Aluminum cans', 'Paper', 'PET bottles', 'Batteries', 'Used cooking oil']
 
+// Sample customers used until your backend sends real data.
+// To use real data, return `regularCustomers: [{ name, type, visits }]` on each hub from api.getCenters.
+const SAMPLE_CUSTOMERS = [
+  { name: 'Metro Tech Services', type: 'IT company', ewaste: true },
+  { name: 'Kumar Electronics Repair', type: 'Repair shop', ewaste: true },
+  { name: 'Anand Hospital', type: 'Hospital', ewaste: true },
+  { name: 'City Public School', type: 'School computer lab', ewaste: true },
+  { name: 'Sharma Kabadi Traders', type: 'Scrap dealer' },
+  { name: 'GreenNest Apartments RWA', type: 'Housing society' },
+  { name: 'Lakshmi Bakery & Cafe', type: 'Restaurant' },
+  { name: 'Patel Auto Garage', type: 'Workshop' },
+  { name: 'Sunrise Hotel', type: 'Hotel' },
+  { name: 'Bright Print House', type: 'Printing press' },
+]
+
+const isEwasteCustomer = c => Boolean(c.ewaste) || (c.materials || []).some(m => /e-?waste/i.test(m))
+const hubAcceptsEwaste = hub => (hub.materials || []).some(m => /e-?waste/i.test(m))
+
+function hashString(value) {
+  let h = 0
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0
+  return h
+}
+
+function getRegularCustomers(hub) {
+  const list =
+    Array.isArray(hub.regularCustomers) && hub.regularCustomers.length
+      ? hub.regularCustomers
+      : (() => {
+          const seed = hashString(String(hub.id))
+          const count = 4 + (seed % 3)
+          return Array.from({ length: count }, (_, i) => ({
+            ...SAMPLE_CUSTOMERS[(seed + i * 3) % SAMPLE_CUSTOMERS.length],
+            visits: 2 + ((seed >> i) % 9),
+          }))
+        })()
+  // E-waste customers always come first
+  return [...list].sort((a, b) => Number(isEwasteCustomer(b)) - Number(isEwasteCustomer(a)))
+}
+
+function getInitials(name) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+}
+
 export default function Centers() {
   const { user } = useAuth()
   const toast = useToast()
@@ -274,6 +318,7 @@ export default function Centers() {
               const photo = getHubPhoto(hub.photoType)
               const hasImgError = Boolean(imgErrors[hub.photoType])
               const isSelected = selectedId === hub.id
+              const customers = getRegularCustomers(hub)
               return (
                 <article
                   key={hub.id}
@@ -296,6 +341,11 @@ export default function Centers() {
                       />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-emerald-950/25 to-transparent" />
+                    {hubAcceptsEwaste(hub) && (
+                      <div className="absolute top-2.5 left-2.5 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-bold text-emerald-950">
+                        Accepts E-waste
+                      </div>
+                    )}
                     <div className="absolute top-2.5 right-2.5 rounded-lg bg-black/55 p-1.5 text-white opacity-85 backdrop-blur-sm transition group-hover:opacity-100">
                       <Expand className="h-3.5 w-3.5" aria-hidden="true" />
                     </div>
@@ -334,6 +384,36 @@ export default function Centers() {
                       </div>
 
                       <p className="text-xs opacity-70">Accepts: {hub.materials.join(' · ')}</p>
+
+                      <div className="space-y-1.5 border-t border-white/10 pt-2">
+                        <p className="text-xs font-semibold">Regular customers</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {customers.slice(0, 3).map(c => (
+                            <span
+                              key={c.name}
+                              title={`${c.name} · ${c.type}`}
+                              className={`inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-2.5 text-[11px] ${
+                                isEwasteCustomer(c) ? 'border-amber-400/50 bg-amber-400/10' : 'border-white/10 bg-white/5'
+                              }`}
+                            >
+                              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-leaf-500/25 text-[10px] font-bold text-leaf-300">
+                                {getInitials(c.name)}
+                              </span>
+                              <span className="max-w-[8.5rem] truncate">{c.name}</span>
+                              {isEwasteCustomer(c) && <span className="font-semibold text-amber-300">E-waste</span>}
+                            </span>
+                          ))}
+                          {customers.length > 3 && (
+                            <button
+                              type="button"
+                              onClick={() => setLightboxHub(hub)}
+                              className="rounded-full border border-leaf-400/35 px-2.5 py-0.5 text-[11px] font-medium text-leaf-400 hover:bg-leaf-500/15"
+                            >
+                              +{customers.length - 3} more
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-xs">
@@ -469,6 +549,33 @@ export default function Centers() {
                   initialLiked={hubLikes[`hub:${lightboxHub.id}`]?.liked ?? false}
                   onChange={res => setHubLikes(prev => ({ ...prev, [res.key]: { count: res.count, liked: res.liked } }))}
                 />
+              </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <h4 className="mb-2 text-sm font-semibold">Regular customers</h4>
+                <ul className="grid gap-2 sm:grid-cols-2">
+                  {getRegularCustomers(lightboxHub).map(c => (
+                    <li
+                      key={c.name}
+                      className={`flex items-center gap-3 rounded-xl border p-2.5 ${
+                        isEwasteCustomer(c) ? 'border-amber-400/50 bg-amber-400/10' : 'border-white/10 bg-white/5'
+                      }`}
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-leaf-500/25 text-xs font-bold text-leaf-300">
+                        {getInitials(c.name)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">
+                          {c.name}
+                          {isEwasteCustomer(c) && <span className="ml-2 text-xs font-semibold text-amber-300">E-waste</span>}
+                        </span>
+                        <span className="block text-xs opacity-70">
+                          {c.type}{c.visits ? ` · ${c.visits} drop-offs/month` : ''}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div className="border-t border-white/10 pt-4">

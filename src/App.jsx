@@ -1,7 +1,9 @@
-import { Routes, Route, Navigate, Link } from 'react-router-dom'
+
+import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
 import { MotionConfig } from 'framer-motion'
 import { useAuth } from './context/AuthContext'
 import { Navbar } from './components/ui'
+import ErrorBoundary from './components/ErrorBoundary'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import UserDashboard from './pages/UserDashboard'
@@ -15,6 +17,8 @@ import CreativeStudio from './pages/CreativeStudio'
 import Reviews from './pages/Reviews'
 import Support from './pages/Support'
 import Wallet from './pages/Wallet'
+import EWaste from './pages/EWaste'
+import DyeWaste from './pages/DyeWaste'
 
 const Guard = ({ role, children }) => {
   const { user, loading, authError } = useAuth()
@@ -25,15 +29,19 @@ const Guard = ({ role, children }) => {
 
 export default function App() {
   const { user } = useAuth()
+  const { pathname } = useLocation()
   return (
     <MotionConfig reducedMotion="user">
       <Navbar/>
       <main className={`mx-auto max-w-6xl px-4 pb-16 pt-24 ${user ? 'lg:ml-64' : ''}`}>
+        <ErrorBoundary key={pathname}>
         <Routes>
           <Route path="/" element={<Landing/>}/>
           <Route path="/login" element={<Login/>}/>
           <Route path="/rates" element={<Rates/>}/>
           <Route path="/centers" element={<Centers/>}/>
+          <Route path="/ewaste" element={<EWaste/>}/>
+          <Route path="/dye-waste" element={<DyeWaste/>}/>
           <Route path="/creative" element={<CreativeStudio/>}/>
           <Route path="/reviews" element={<Reviews/>}/>
           <Route path="/support" element={<Support/>}/>
@@ -45,7 +53,9 @@ export default function App() {
           <Route path="/profile" element={<Guard><Profile/></Guard>}/>
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>
+        </ErrorBoundary>
       </main>
     </MotionConfig>
   )
 }
+

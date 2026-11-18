@@ -22,6 +22,9 @@ function formatPingTime(iso) {
   }
 }
 
+// True only when the value is a usable { lat, lng } pair
+const hasCoords = loc => Boolean(loc) && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))
+
 export default function LiveTracker({ pickupId, role = 'user', onStatusSync }) {
   const toast = useToast()
   const [tracking, setTracking] = useState(null)
@@ -136,14 +139,19 @@ export default function LiveTracker({ pickupId, role = 'user', onStatusSync }) {
 
   if (!tracking) return null
 
+  const userHasLocation = hasCoords(tracking.userLocation)
+  const collectorHasLocation = hasCoords(tracking.collectorLocation)
+  const distanceKm = Number(tracking.distanceKm)
+  const hasDistance = collectorHasLocation && Number.isFinite(distanceKm)
+
   const stageIndex = Math.max(0, STAGES.findIndex(s => s.key === tracking.trackingStage))
   const currentStageLabel = STAGES[stageIndex]?.label || 'Assigned'
   const etaDisplay = tracking.trackingStage === 'arrived' || tracking.trackingStage === 'weighing'
     ? 'At door'
     : tracking.trackingStage === 'completed'
       ? 'Done'
-      : tracking.collectorLocation
-        ? `${tracking.etaMinutes} min`
+      : collectorHasLocation
+        ? `${tracking.etaMinutes ?? '–'} min`
         : 'Pending'
 
   return (
@@ -249,7 +257,7 @@ export default function LiveTracker({ pickupId, role = 'user', onStatusSync }) {
         <div className="rounded-xl border border-white/10 bg-white/5 p-3">
           <p className="text-xs opacity-65">Live distance</p>
           <p className="mt-1 font-mono text-lg font-bold tabular-nums">
-            {tracking.collectorLocation ? `${tracking.distanceKm.toFixed(2)} km` : '—'}
+            {hasDistance ? `${distanceKm.toFixed(2)} km` : '—'}
           </p>
         </div>
         <div className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -282,13 +290,20 @@ export default function LiveTracker({ pickupId, role = 'user', onStatusSync }) {
         })}
       </ol>
 
-      <LiveTrackingMap
-        userLocation={tracking.userLocation}
-        collectorLocation={tracking.collectorLocation}
-        userLabel={`${tracking.user?.name || 'Customer'} · ${tracking.address}`}
-        collectorLabel={tracking.collector ? `${tracking.collector.name} (${tracking.collector.vehicle})` : 'Awaiting buyer'}
-        trackingStage={tracking.trackingStage}
-      />
+      {userHasLocation ? (
+        <LiveTrackingMap
+          userLocation={tracking.userLocation}
+          collectorLocation={collectorHasLocation ? tracking.collectorLocation : null}
+          userLabel={`${tracking.user?.name || 'Customer'} · ${tracking.address}`}
+          collectorLabel={tracking.collector ? `${tracking.collector.name} (${tracking.collector.vehicle})` : 'Awaiting buyer'}
+          trackingStage={tracking.trackingStage}
+        />
+      ) : (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm opacity-80">
+          The pickup location is not available yet, so the live map cannot be shown.
+          {role === 'user' && ' Tap "Share my live GPS" to set your pin.'}
+        </div>
+      )}
 
       {/* Bidirectional contact cards: User & Buyer */}
       <div className="grid gap-3 md:grid-cols-2">
@@ -299,9 +314,11 @@ export default function LiveTracker({ pickupId, role = 'user', onStatusSync }) {
           </div>
           <p className="mt-1 font-medium">{tracking.user?.name || 'Customer'}</p>
           <p className="text-xs opacity-75">{tracking.address}</p>
-          <p className="mt-1 font-mono text-xs tabular-nums opacity-65">
-            GPS: {tracking.userLocation.lat.toFixed(4)}, {tracking.userLocation.lng.toFixed(4)}
-          </p>
+          {userHasLocation && (
+            <p className="mt-1 font-mono text-xs tabular-nums opacity-65">
+              GPS: {Number(tracking.userLocation.lat).toFixed(4)}, {Number(tracking.userLocation.lng).toFixed(4)}
+            </p>
+          )}
           {(tracking.user?.phone || tracking.user?.altPhone) && (
             <p className="mt-1.5 flex flex-wrap items-center gap-3 text-xs opacity-80">
               {tracking.user.phone && (
@@ -327,9 +344,9 @@ export default function LiveTracker({ pickupId, role = 'user', onStatusSync }) {
                 {tracking.collector.name} · <span className="font-mono text-xs text-amber-300 tabular-nums">{tracking.collector.rating || '4.8'}/5</span>
               </p>
               <p className="text-xs opacity-75">{tracking.collector.vehicle}</p>
-              {tracking.collectorLocation && (
+              {collectorHasLocation && (
                 <p className="mt-1 font-mono text-xs tabular-nums opacity-65">
-                  GPS: {tracking.collectorLocation.lat.toFixed(4)}, {tracking.collectorLocation.lng.toFixed(4)}
+                  GPS: {Number(tracking.collectorLocation.lat).toFixed(4)}, {Number(tracking.collectorLocation.lng).toFixed(4)}
                 </p>
               )}
               {tracking.collector.phone && (
